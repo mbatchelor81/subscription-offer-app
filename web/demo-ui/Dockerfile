@@ -51,3 +51,17 @@ ENV PORT=3000 \
     NODE_ENV=production
 
 CMD ["node", "server.js"]
+
+# ---------- Stage 4: development ----------
+FROM node:20-alpine AS dev
+
+WORKDIR /app
+
+COPY package.json package-lock.json* ./
+RUN npm ci || npm install
+
+COPY . .
+
+EXPOSE 3000
+
+CMD ["npm", "run", "dev"]

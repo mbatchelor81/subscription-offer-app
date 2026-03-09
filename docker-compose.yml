@@ -18,6 +18,7 @@ services:
     build:
       context: ./web/demo-ui
       dockerfile: Dockerfile
+      target: dev
     ports:
       - "3000:3000"
     env_file:
