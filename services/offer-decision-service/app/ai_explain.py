@@ -91,7 +91,7 @@ async def enhance_explanation(
                 {"role": "user", "content": user_msg},
             ],
         )
-        text = resp.choices[0].message.content.strip()
+        text = (resp.choices[0].message.content or "").strip()
         return text or None
     except AuthenticationError:
         logger.error("OpenAI authentication failed — check OPENAI_API_KEY")
