@@ -16,8 +16,7 @@ logger = logging.getLogger(__name__)
 
 app = FastAPI(title="Offer Decision Service", version="0.1.0")
 
-# ── Observability setup ────────────────────────────────────────
-setup_tracing(app)
+# ── Prometheus metrics (must be before tracing so /metrics is registered) ──
 setup_metrics(app)
 
 app.add_middleware(
@@ -58,6 +57,11 @@ async def request_id_middleware(request: Request, call_next):
         return response
     finally:
         request_id_ctx.reset(token)
+
+
+# ── OpenTelemetry tracing (registered AFTER request_id middleware so the
+#    OTEL middleware wraps it outermost and the span is active when we log) ──
+setup_tracing(app)
 
 
 @app.get("/healthz")
