@@ -1,6 +1,8 @@
 """Tests for the observability layer (metrics, structured logging, tracing)."""
 
+import io
 import json
+import logging
 
 from fastapi.testclient import TestClient
 
@@ -38,28 +40,39 @@ def test_metrics_populated_after_requests():
 # ── Structured logging ────────────────────────────────────────────
 
 
-def test_structured_logs_are_json(capsys):
+def test_structured_logs_are_json():
     """Log output should be valid JSON with expected fields."""
     import structlog
 
-    log = structlog.stdlib.get_logger("test")
-    log.info("test_event", extra_key="extra_value")
+    # Attach a temporary handler with a StringIO buffer so we can capture
+    # output reliably (capsys cannot intercept handlers created at import time).
+    buf = io.StringIO()
+    handler = logging.StreamHandler(buf)
+    # Re-use the same formatter the app configures on the root handler
+    root = logging.getLogger()
+    if root.handlers:
+        handler.setFormatter(root.handlers[0].formatter)
+    else:
+        handler.setFormatter(
+            structlog.stdlib.ProcessorFormatter(
+                processor=structlog.processors.JSONRenderer(),
+            )
+        )
 
-    captured = capsys.readouterr()
-    # structlog writes to stderr via the stdlib handler
-    output = captured.err.strip()
-    if not output:
-        # Some configurations may write to stdout
-        output = captured.out.strip()
+    root.addHandler(handler)
+    try:
+        log = structlog.stdlib.get_logger("test")
+        log.info("test_event", extra_key="extra_value")
+        handler.flush()
+        output = buf.getvalue().strip()
+    finally:
+        root.removeHandler(handler)
 
-    # If no output captured (e.g. log level filtering), just verify
-    # structlog is configured for JSON rendering by checking the config
-    if output:
-        parsed = json.loads(output)
-        assert "event" in parsed
-        assert parsed["event"] == "test_event"
-        assert "timestamp" in parsed
-        assert "level" in parsed
+    assert output, "Expected structured log output but got nothing"
+    parsed = json.loads(output)
+    assert parsed["event"] == "test_event"
+    assert "timestamp" in parsed
+    assert "level" in parsed
 
 
 # ── Request-ID middleware ─────────────────────────────────────────
