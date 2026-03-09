@@ -51,3 +51,18 @@ ENV PORT=3000 \
     NODE_ENV=production
 
 CMD ["node", "server.js"]
+
+# ---------- Stage 4: dev (used by docker-compose for local development) ----------
+FROM node:20-alpine AS dev
+
+WORKDIR /app
+
+COPY package.json package-lock.json* ./
+RUN npm ci || npm install
+
+COPY . .
+
+EXPOSE 3000
+
+# Dev CMD — with hot-reloading
+CMD ["npm", "run", "dev"]
