@@ -1,0 +1,28 @@
+replicaCount: 1
+
+image:
+  repository: offer-decision-service
+  tag: latest
+  pullPolicy: IfNotPresent
+
+service:
+  type: ClusterIP
+  port: 8000
+
+# ── Observability ──────────────────────────────────────────────
+
+# OpenTelemetry collector endpoint (leave empty to disable export)
+otel:
+  exporterEndpoint: ""
+
+# Prometheus scrape annotations are added to the pod template
+# automatically. Override the port/path here if needed.
+prometheus:
+  scrape: true
+  port: 8000
+  path: /metrics
+
+# Application environment variables
+env:
+  LOG_LEVEL: info
+  APP_ENV: production

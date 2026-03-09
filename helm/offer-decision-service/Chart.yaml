@@ -1,0 +1,5 @@
+apiVersion: v2
+name: offer-decision-service
+description: Helm chart for the Offer Decision Service
+version: 0.1.0
+appVersion: "0.1.0"
