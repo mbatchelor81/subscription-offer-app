@@ -5,7 +5,6 @@ from __future__ import annotations
 import logging
 import os
 import time
-from collections import defaultdict
 
 from fastapi import FastAPI, Request, status
 from fastapi.middleware.cors import CORSMiddleware
@@ -67,19 +66,23 @@ _RATE_LIMIT_WINDOW = int(os.getenv("RATE_LIMIT_WINDOW", "60"))  # seconds
 _RATE_LIMIT_MAX = int(os.getenv("RATE_LIMIT_MAX", "30"))  # requests per window
 
 # Mapping from client IP → list of request timestamps
-_rate_buckets: dict[str, list[float]] = defaultdict(list)
+_rate_buckets: dict[str, list[float]] = {}
 
 
 def _is_rate_limited(client_ip: str) -> bool:
     """Return True if *client_ip* has exceeded the rate limit."""
     now = time.monotonic()
     window_start = now - _RATE_LIMIT_WINDOW
-    bucket = _rate_buckets[client_ip]
-    # Prune old entries
-    _rate_buckets[client_ip] = [t for t in bucket if t > window_start]
-    if len(_rate_buckets[client_ip]) >= _RATE_LIMIT_MAX:
+    bucket = _rate_buckets.get(client_ip, [])
+    # Prune old entries; evict key entirely when empty
+    pruned = [t for t in bucket if t > window_start]
+    if not pruned:
+        _rate_buckets.pop(client_ip, None)
+    else:
+        _rate_buckets[client_ip] = pruned
+    if len(pruned) >= _RATE_LIMIT_MAX:
         return True
-    _rate_buckets[client_ip].append(now)
+    _rate_buckets.setdefault(client_ip, []).append(now)
     return False
 
 
