@@ -2,3 +2,13 @@ node_modules/
 .next/
 out/
 .env
+.env.*
+.git/
+.github/
+.gitignore
+*.md
+docs/
+.dockerignore
+.windsurf/
+helm/
+infra/
