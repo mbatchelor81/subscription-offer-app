@@ -78,9 +78,7 @@ class TestEnhanceExplanationSuccess:
     @pytest.mark.asyncio
     async def test_calls_openai_with_correct_model(self):
         mock_response = MagicMock()
-        mock_response.choices = [
-            MagicMock(message=MagicMock(content="Enhanced text."))
-        ]
+        mock_response.choices = [MagicMock(message=MagicMock(content="Enhanced text."))]
 
         mock_client = AsyncMock()
         mock_client.chat.completions.create = AsyncMock(return_value=mock_response)
@@ -94,9 +92,7 @@ class TestEnhanceExplanationSuccess:
     @pytest.mark.asyncio
     async def test_passes_system_and_user_messages(self):
         mock_response = MagicMock()
-        mock_response.choices = [
-            MagicMock(message=MagicMock(content="Enhanced text."))
-        ]
+        mock_response.choices = [MagicMock(message=MagicMock(content="Enhanced text."))]
 
         mock_client = AsyncMock()
         mock_client.chat.completions.create = AsyncMock(return_value=mock_response)
@@ -113,9 +109,7 @@ class TestEnhanceExplanationSuccess:
     @pytest.mark.asyncio
     async def test_user_message_contains_subscriber_info(self):
         mock_response = MagicMock()
-        mock_response.choices = [
-            MagicMock(message=MagicMock(content="Enhanced text."))
-        ]
+        mock_response.choices = [MagicMock(message=MagicMock(content="Enhanced text."))]
 
         mock_client = AsyncMock()
         mock_client.chat.completions.create = AsyncMock(return_value=mock_response)
@@ -178,9 +172,7 @@ class TestEnhanceExplanationFallback:
     @pytest.mark.asyncio
     async def test_returns_none_on_empty_response(self):
         mock_response = MagicMock()
-        mock_response.choices = [
-            MagicMock(message=MagicMock(content=""))
-        ]
+        mock_response.choices = [MagicMock(message=MagicMock(content=""))]
 
         mock_client = AsyncMock()
         mock_client.chat.completions.create = AsyncMock(return_value=mock_response)
@@ -193,9 +185,7 @@ class TestEnhanceExplanationFallback:
     @pytest.mark.asyncio
     async def test_returns_none_on_whitespace_only_response(self):
         mock_response = MagicMock()
-        mock_response.choices = [
-            MagicMock(message=MagicMock(content="   "))
-        ]
+        mock_response.choices = [MagicMock(message=MagicMock(content="   "))]
 
         mock_client = AsyncMock()
         mock_client.chat.completions.create = AsyncMock(return_value=mock_response)
@@ -261,7 +251,10 @@ class TestAINeverChangesDecision:
         # Result is only a string, not an offer decision
         assert isinstance(result, str)
         # The original policy explanation is unchanged (it's a separate input)
-        assert _BASE_KWARGS["policy_explanation"] == "High churn risk and high value subscriber."
+        assert (
+            _BASE_KWARGS["policy_explanation"]
+            == "High churn risk and high value subscriber."
+        )
 
     @pytest.mark.asyncio
     async def test_enhance_returns_only_text_type(self):

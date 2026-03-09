@@ -21,9 +21,7 @@ client = TestClient(app)
 def _mock_openai(ai_text: str = "AI-enhanced explanation."):
     """Create a patch context that mocks the OpenAI client."""
     mock_response = MagicMock()
-    mock_response.choices = [
-        MagicMock(message=MagicMock(content=ai_text))
-    ]
+    mock_response.choices = [MagicMock(message=MagicMock(content=ai_text))]
     mock_client = AsyncMock()
     mock_client.chat.completions.create = AsyncMock(return_value=mock_response)
     return patch("app.ai_explain._client", return_value=mock_client)
@@ -54,7 +52,10 @@ class TestFullFlowWithAI:
         assert body["recommended_offer"] == "Premium Loyalty Bundle"
         assert body["discount_pct"] == 25
         assert len(body["explanation"]) > 0
-        assert body["ai_explanation"] == "Personalized retention message for valued customer."
+        assert (
+            body["ai_explanation"]
+            == "Personalized retention message for valued customer."
+        )
 
     def test_loyalty_saver_full_flow(self):
         with _mock_openai("We value your loyalty and want to help you save."):
@@ -73,7 +74,9 @@ class TestFullFlowWithAI:
         body = resp.json()
         assert body["recommended_offer"] == "Loyalty Saver Plan"
         assert body["discount_pct"] == 15
-        assert body["ai_explanation"] == "We value your loyalty and want to help you save."
+        assert (
+            body["ai_explanation"] == "We value your loyalty and want to help you save."
+        )
 
     def test_upsell_full_flow(self):
         with _mock_openai("As a long-time customer, you deserve more."):

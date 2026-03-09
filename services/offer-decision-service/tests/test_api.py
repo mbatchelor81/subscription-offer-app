@@ -279,4 +279,7 @@ class TestResponseFormat:
             },
         )
         # CORS allows all origins
-        assert resp.headers.get("access-control-allow-origin") in ("*", "http://localhost:3000")
+        assert resp.headers.get("access-control-allow-origin") in (
+            "*",
+            "http://localhost:3000",
+        )

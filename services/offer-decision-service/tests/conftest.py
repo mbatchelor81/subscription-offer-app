@@ -23,3 +23,14 @@ def mock_openai_client():
     """
     with patch("app.ai_explain._client", return_value=None) as m:
         yield m
+
+
+@pytest.fixture(autouse=True)
+def reset_rate_limiter():
+    """Clear the in-memory rate limiter between tests so tests don't
+    interfere with each other."""
+    from app.main import _rate_buckets
+
+    _rate_buckets.clear()
+    yield
+    _rate_buckets.clear()
