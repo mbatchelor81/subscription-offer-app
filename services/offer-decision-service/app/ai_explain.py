@@ -11,12 +11,12 @@ is returned unchanged.
 
 from __future__ import annotations
 
-import logging
 import os
 
+import structlog
 from openai import AsyncOpenAI, OpenAIError
 
-logger = logging.getLogger(__name__)
+logger = structlog.stdlib.get_logger(__name__)
 
 _SYSTEM_PROMPT = (
     "You are a helpful customer-retention copywriter for a telecom company. "
