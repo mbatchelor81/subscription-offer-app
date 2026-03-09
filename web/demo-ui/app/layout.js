@@ -1,3 +1,5 @@
+import "./globals.css";
+
 export const metadata = {
   title: "Subscriber Offer Decisioning",
   description: "Demo UI for the offer decision service",
