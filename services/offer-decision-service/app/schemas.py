@@ -54,8 +54,12 @@ class SubscriberRequest(BaseModel):
     @model_validator(mode="after")
     def _strip_strings(self) -> "SubscriberRequest":
         """Normalise whitespace on string fields."""
-        object.__setattr__(self, "subscriber_id", self.subscriber_id.strip())
-        object.__setattr__(self, "current_plan", self.current_plan.strip())
+        stripped_id = self.subscriber_id.strip()
+        stripped_plan = self.current_plan.strip()
+        if not stripped_id or not stripped_plan:
+            raise ValueError("subscriber_id and current_plan must not be blank")
+        object.__setattr__(self, "subscriber_id", stripped_id)
+        object.__setattr__(self, "current_plan", stripped_plan)
         return self
 
 
