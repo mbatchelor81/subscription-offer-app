@@ -19,10 +19,12 @@ service:
 config:
   APP_ENV: "production"
   LOG_LEVEL: "info"
+  ALLOWED_ORIGINS: ""  # comma-separated list of allowed CORS origins
 
 # -- Sensitive configuration (mounted via Secret)
 # Set secret.create=true to have the chart manage the Secret resource,
 # or set secret.existingSecret to reference an externally-managed Secret.
+# In production, prefer ExternalSecrets / SealedSecrets over inline values.
 secret:
   create: false
   existingSecret: ""

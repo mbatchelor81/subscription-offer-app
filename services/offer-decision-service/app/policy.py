@@ -13,7 +13,7 @@ from dataclasses import dataclass
 @dataclass(frozen=True)
 class OfferDecision:
     offer_name: str
-    discount_pct: int          # 0 means no discount
+    discount_pct: int  # 0 means no discount
     explanation: str
 
 

@@ -75,6 +75,11 @@ async def enhance_explanation(
         logger.warning("OpenAI returned empty content")
         return None
 
-    except Exception:
-        logger.exception("AI explanation failed — falling back to base")
+    except Exception as exc:
+        # Log only the exception type — never the full traceback which
+        # could contain the API key in HTTP headers or request bodies.
+        logger.error(
+            "AI explanation failed (type=%s) — falling back to base",
+            type(exc).__name__,
+        )
         return None
