@@ -1,0 +1,185 @@
+# ──────────────────────────────────────────────────────────────
+# CI/CD Pipeline — Subscription Offer App
+# ──────────────────────────────────────────────────────────────
+# Jobs:
+#   1. lint-test    – Ruff linting + pytest with coverage
+#   2. sonar        – SonarCloud quality gate (PRs + main only)
+#   3. build-push   – Docker build & push to ECR (main + demo/**)
+#   4. deploy       – Helm deploy to EKS (main + demo/**)
+# ──────────────────────────────────────────────────────────────
+
+name: CI/CD
+
+on:
+  pull_request:
+    branches:
+      - "**"
+  push:
+    branches:
+      - main
+      - "demo/**"
+
+# Cancel redundant runs for the same branch / PR
+concurrency:
+  group: ${{ github.workflow }}-${{ github.head_ref || github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  id-token: write   # OIDC token for AWS auth
+  contents: read
+
+# ──────────────────────────────────────────────────────────────
+# Job 1: Lint & Test
+# ──────────────────────────────────────────────────────────────
+jobs:
+  lint-test:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: services/offer-decision-service
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: pip install --upgrade pip && pip install ".[dev]"
+
+      - name: Lint with ruff
+        run: ruff check app/ tests/
+
+      - name: Run tests with coverage
+        run: pytest --cov=app --cov-report=xml:coverage.xml tests/
+
+      - name: Upload coverage artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage
+          path: services/offer-decision-service/coverage.xml
+
+  # ──────────────────────────────────────────────────────────────
+  # Job 2: SonarCloud Scan  (PRs + main only)
+  # ──────────────────────────────────────────────────────────────
+  sonar:
+    needs: lint-test
+    runs-on: ubuntu-latest
+    if: >-
+      github.event_name == 'pull_request' ||
+      (github.event_name == 'push' && github.ref == 'refs/heads/main')
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # full history for accurate blame / new-code detection
+
+      - name: Download coverage artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: coverage
+
+      - name: SonarCloud Scan
+        uses: SonarSource/sonarcloud-github-action@master
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+
+  # ──────────────────────────────────────────────────────────────
+  # Job 3: Build & Push Images to ECR  (main + demo/**)
+  # ──────────────────────────────────────────────────────────────
+  build-push:
+    needs: [lint-test, sonar]
+    runs-on: ubuntu-latest
+    if: >-
+      always() &&
+      needs.lint-test.result == 'success' &&
+      (needs.sonar.result == 'success' || needs.sonar.result == 'skipped') &&
+      github.event_name == 'push' &&
+      (github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/heads/demo/'))
+
+    env:
+      ECR_REGISTRY: 599083837640.dkr.ecr.us-east-1.amazonaws.com
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Configure AWS credentials (OIDC)
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          aws-region: us-east-1
+
+      - name: Login to Amazon ECR
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Build & push backend image
+        uses: docker/build-push-action@v6
+        with:
+          context: services/offer-decision-service
+          file: services/offer-decision-service/Dockerfile
+          push: true
+          tags: |
+            ${{ env.ECR_REGISTRY }}/offer-decision-service:${{ github.sha }}
+            ${{ env.ECR_REGISTRY }}/offer-decision-service:latest
+
+      - name: Build & push frontend image
+        uses: docker/build-push-action@v6
+        with:
+          context: web/demo-ui
+          file: web/demo-ui/Dockerfile
+          push: true
+          tags: |
+            ${{ env.ECR_REGISTRY }}/demo-ui:${{ github.sha }}
+            ${{ env.ECR_REGISTRY }}/demo-ui:latest
+
+  # ──────────────────────────────────────────────────────────────
+  # Job 4: Deploy to EKS  (main + demo/**)
+  # ──────────────────────────────────────────────────────────────
+  deploy:
+    needs: build-push
+    runs-on: ubuntu-latest
+    if: >-
+      always() &&
+      needs.build-push.result == 'success' &&
+      github.event_name == 'push' &&
+      (github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/heads/demo/'))
+
+    env:
+      ECR_REGISTRY: 599083837640.dkr.ecr.us-east-1.amazonaws.com
+      EKS_CLUSTER: subscription-offer-app
+      NAMESPACE: offer-decision
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Configure AWS credentials (OIDC)
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          aws-region: us-east-1
+
+      - name: Update kubeconfig
+        run: aws eks update-kubeconfig --name ${{ env.EKS_CLUSTER }} --region us-east-1
+
+      - name: Deploy offer-decision-service
+        run: |
+          helm upgrade --install offer-decision-service helm/offer-decision-service/ \
+            --namespace ${{ env.NAMESPACE }} \
+            --set image.repository=${{ env.ECR_REGISTRY }}/offer-decision-service \
+            --set image.tag=${{ github.sha }} \
+            --wait --timeout 5m
+
+      - name: Deploy demo-ui
+        run: |
+          helm upgrade --install demo-ui helm/demo-ui/ \
+            --namespace ${{ env.NAMESPACE }} \
+            --set image.repository=${{ env.ECR_REGISTRY }}/demo-ui \
+            --set image.tag=${{ github.sha }} \
+            --wait --timeout 5m
