@@ -165,12 +165,14 @@ jobs:
             --region "$AWS_REGION"
 
       - name: Deploy with Helm
+        env:
+          IMAGE_URI: ${{ needs.build-push.outputs.image_uri }}
         run: |
           helm upgrade --install offer-decision-service \
             helm/offer-decision-service/ \
             --namespace "$K8S_NAMESPACE" \
             --create-namespace \
-            --set image.repository=$(echo "${{ needs.build-push.outputs.image_uri }}" | cut -d: -f1) \
-            --set image.tag=$(echo "${{ needs.build-push.outputs.image_uri }}" | cut -d: -f2) \
+            --set image.repository=$(echo "$IMAGE_URI" | cut -d: -f1) \
+            --set image.tag=$(echo "$IMAGE_URI" | cut -d: -f2) \
             --wait \
             --timeout 5m
