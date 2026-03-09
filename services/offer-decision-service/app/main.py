@@ -35,10 +35,8 @@ _REQUEST_BODY_MAX_BYTES = 1 * 1024 * 1024  # 1 MiB — generous for JSON payload
 # list (e.g. "https://app.example.com,https://admin.example.com").
 _DEFAULT_ORIGINS = "http://localhost:3000,http://127.0.0.1:3000"
 _allowed_origins: list[str] = [
-    o.strip()
-    for o in os.environ.get("ALLOWED_ORIGINS", _DEFAULT_ORIGINS).split(",")
-    if o.strip()
-]
+    o.strip() for o in os.environ.get("ALLOWED_ORIGINS", "").split(",") if o.strip()
+] or _DEFAULT_ORIGINS.split(",")
 
 # ---------------------------------------------------------------------------
 # Application
@@ -95,11 +93,19 @@ class RequestSizeLimitMiddleware(BaseHTTPMiddleware):
 
     async def dispatch(self, request: Request, call_next):  # noqa: ANN001
         content_length = request.headers.get("content-length")
-        if content_length and int(content_length) > _REQUEST_BODY_MAX_BYTES:
-            return JSONResponse(
-                status_code=413,
-                content={"detail": "Request body too large"},
-            )
+        if content_length:
+            try:
+                length = int(content_length)
+            except ValueError:
+                return JSONResponse(
+                    status_code=400,
+                    content={"detail": "Invalid Content-Length header"},
+                )
+            if length > _REQUEST_BODY_MAX_BYTES:
+                return JSONResponse(
+                    status_code=413,
+                    content={"detail": "Request body too large"},
+                )
         return await call_next(request)
 
 
