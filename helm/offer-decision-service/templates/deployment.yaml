@@ -15,6 +15,12 @@ spec:
     metadata:
       labels:
         {{- include "offer-decision-service.selectorLabels" . | nindent 8 }}
+      annotations:
+        {{- if .Values.prometheus.scrape }}
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "{{ .Values.prometheus.port }}"
+        prometheus.io/path: "{{ .Values.prometheus.path }}"
+        {{- end }}
     spec:
       {{- with .Values.nodeSelector }}
       nodeSelector:
@@ -46,6 +52,10 @@ spec:
                 secretKeyRef:
                   name: {{ include "offer-decision-service.secretName" . }}
                   key: OPENAI_API_KEY
+            {{- end }}
+            {{- if .Values.otel.exporterEndpoint }}
+            - name: OTEL_EXPORTER_OTLP_ENDPOINT
+              value: "{{ .Values.otel.exporterEndpoint }}"
             {{- end }}
           livenessProbe:
             {{- toYaml .Values.livenessProbe | nindent 12 }}

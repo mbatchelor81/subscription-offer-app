@@ -4,6 +4,12 @@ metadata:
   name: {{ include "offer-decision-service.fullname" . }}
   labels:
     {{- include "offer-decision-service.labels" . | nindent 4 }}
+  annotations:
+    {{- if .Values.prometheus.scrape }}
+    prometheus.io/scrape: "true"
+    prometheus.io/port: "{{ .Values.prometheus.port }}"
+    prometheus.io/path: "{{ .Values.prometheus.path }}"
+    {{- end }}
 spec:
   type: {{ .Values.service.type }}
   ports:

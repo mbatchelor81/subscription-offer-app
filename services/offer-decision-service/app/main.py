@@ -1,11 +1,23 @@
-from fastapi import FastAPI
+import logging
+
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.ai_explain import enhance_explanation
+from app.logging_config import generate_request_id, request_id_ctx, setup_logging
+from app.metrics import setup_metrics
 from app.policy import decide
 from app.schemas import OfferResponse, SubscriberRequest
+from app.tracing import setup_tracing
+
+# ── Bootstrap structured logging before anything else ──────────
+setup_logging()
+logger = logging.getLogger(__name__)
 
 app = FastAPI(title="Offer Decision Service", version="0.1.0")
+
+# ── Prometheus metrics (must be before tracing so /metrics is registered) ──
+setup_metrics(app)
 
 app.add_middleware(
     CORSMiddleware,
@@ -13,6 +25,43 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+
+@app.middleware("http")
+async def request_id_middleware(request: Request, call_next):
+    """Attach a unique request_id to every request and log it."""
+    request_id = request.headers.get("X-Request-ID", generate_request_id())
+    request.state.request_id = request_id
+
+    # Store request_id in a ContextVar (safe under async concurrency)
+    token = request_id_ctx.set(request_id)
+
+    logger.info(
+        "request_started",
+        extra={
+            "path": request.url.path,
+            "method": request.method,
+        },
+    )
+
+    try:
+        response = await call_next(request)
+        response.headers["X-Request-ID"] = request_id
+
+        logger.info(
+            "request_completed",
+            extra={
+                "status_code": response.status_code,
+            },
+        )
+        return response
+    finally:
+        request_id_ctx.reset(token)
+
+
+# ── OpenTelemetry tracing (registered AFTER request_id middleware so the
+#    OTEL middleware wraps it outermost and the span is active when we log) ──
+setup_tracing(app)
 
 
 @app.get("/healthz")
