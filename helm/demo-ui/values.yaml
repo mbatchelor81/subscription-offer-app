@@ -17,7 +17,7 @@ service:
 
 # -- Non-sensitive configuration (mounted via ConfigMap)
 config:
-  NEXT_PUBLIC_API_URL: "http://offer-decision-service"
+  NEXT_PUBLIC_API_URL: ""
 
 resources:
   requests:
@@ -61,6 +61,14 @@ ingress:
     alb.ingress.kubernetes.io/target-type: ip
     alb.ingress.kubernetes.io/listen-ports: '[{"HTTP": 80}]'
     alb.ingress.kubernetes.io/healthcheck-path: /
+  # Backend API paths routed to the offer-decision-service through the same ALB
+  backendServiceName: offer-decision-service
+  backendServicePort: 80
+  backendPaths:
+    - /decide
+    - /healthz
+    - /metrics
+    - /openapi.json
 
 nodeSelector: {}
 tolerations: []

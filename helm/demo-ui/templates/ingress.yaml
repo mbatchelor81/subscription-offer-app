@@ -12,6 +12,15 @@ spec:
   rules:
     - http:
         paths:
+          {{- range .Values.ingress.backendPaths }}
+          - path: {{ . | quote }}
+            pathType: Prefix
+            backend:
+              service:
+                name: {{ $.Values.ingress.backendServiceName }}
+                port:
+                  number: {{ $.Values.ingress.backendServicePort }}
+          {{ end }}
           - path: /
             pathType: Prefix
             backend:
