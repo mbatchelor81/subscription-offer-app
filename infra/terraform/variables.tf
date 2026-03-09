@@ -43,7 +43,13 @@ variable "ecr_encryption_type" {
 variable "create_oidc_provider" {
   description = "Whether to create the GitHub Actions OIDC provider"
   type        = bool
-  default     = true
+  default     = false
+}
+
+variable "existing_oidc_provider_arn" {
+  description = "ARN of an existing GitHub OIDC provider (used when create_oidc_provider = false)"
+  type        = string
+  default     = "arn:aws:iam::599083837640:oidc-provider/token.actions.githubusercontent.com"
 }
 
 variable "github_repositories" {

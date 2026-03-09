@@ -25,9 +25,10 @@ module "ecr" {
 module "iam" {
   source = "./modules/iam"
 
-  project_name         = var.project_name
-  create_oidc_provider = var.create_oidc_provider
-  github_repositories  = var.github_repositories
+  project_name              = var.project_name
+  create_oidc_provider      = var.create_oidc_provider
+  existing_oidc_provider_arn = var.existing_oidc_provider_arn
+  github_repositories       = var.github_repositories
   ecr_repository_arns  = [module.ecr.repository_arn]
   eks_cluster_arns     = var.eks_cluster_arns
 
