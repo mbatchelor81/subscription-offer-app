@@ -1,12 +1,56 @@
-FROM python:3.12-slim
+# ============================================================
+# offer-decision-service  —  multi-stage production Dockerfile
+# ============================================================
+# Runtime environment variables (set via ConfigMap / .env):
+#   APP_ENV          – environment name (local | staging | production)
+#   LOG_LEVEL        – Python log level (debug | info | warning | error)
+#   OPENAI_API_KEY   – OpenAI API key for AI explanation enhancement
+#   OTEL_EXPORTER_OTLP_ENDPOINT – (optional) OpenTelemetry collector URL
+# ============================================================
+
+# ---------- Stage 1: build ----------
+FROM python:3.12-slim AS builder
+
+WORKDIR /build
+
+COPY pyproject.toml .
+
+# Install production dependencies only into a virtual-env so we can
+# copy just the site-packages to the runtime stage.
+RUN python -m venv /opt/venv \
+    && /opt/venv/bin/pip install --no-cache-dir --upgrade pip \
+    && /opt/venv/bin/pip install --no-cache-dir .
+
+# ---------- Stage 2: production ----------
+FROM python:3.12-slim AS production
+
+LABEL maintainer="offer-decision-service"
+
+# Create a non-root user
+RUN groupadd --gid 1000 appuser \
+    && useradd --uid 1000 --gid 1000 --create-home appuser
 
 WORKDIR /app
 
-COPY pyproject.toml .
-RUN pip install --no-cache-dir . && pip install --no-cache-dir ".[dev]"
+# Copy only the virtual-env from the builder stage
+COPY --from=builder /opt/venv /opt/venv
 
-COPY . .
+# Copy application source
+COPY app/ ./app/
+
+# Ensure the venv binaries are on PATH
+ENV PATH="/opt/venv/bin:$PATH" \
+    PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1
+
+# Switch to non-root user
+USER appuser
 
 EXPOSE 8000
 
-CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000", "--reload"]
+# Health check against the /healthz endpoint
+HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
+    CMD ["python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/healthz')"]
+
+# Production CMD — no --reload
+CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
