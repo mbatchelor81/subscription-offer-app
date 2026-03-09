@@ -1,4 +1,25 @@
+# Dependencies & build output
 node_modules/
 .next/
 out/
+
+# Environment / secrets
 .env
+.env.*
+
+# Tests & docs
+tests/
+docs/
+*.md
+
+# Version control
+.git/
+.gitignore
+
+# IDE
+.vscode/
+.idea/
+
+# Coverage / CI
+coverage/
+.nyc_output/

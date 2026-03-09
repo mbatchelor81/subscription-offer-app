@@ -11,12 +11,19 @@ is returned unchanged.
 
 from __future__ import annotations
 
-import logging
 import os
 
-from openai import AsyncOpenAI, OpenAIError
+import structlog
+from openai import (
+    APIConnectionError,
+    APITimeoutError,
+    AsyncOpenAI,
+    AuthenticationError,
+    OpenAIError,
+    RateLimitError,
+)
 
-logger = logging.getLogger(__name__)
+logger = structlog.stdlib.get_logger(__name__)
 
 _SYSTEM_PROMPT = (
     "You are a helpful customer-retention copywriter for a telecom company. "
@@ -35,11 +42,23 @@ _SYSTEM_PROMPT = (
 )
 
 
+# Timeout for OpenAI API calls in seconds
+_OPENAI_TIMEOUT_SECONDS = 15.0
+
+
+_cached_client: AsyncOpenAI | None = None
+_client_initialized: bool = False
+
+
 def _client() -> AsyncOpenAI | None:
-    key = os.getenv("OPENAI_API_KEY", "").strip()
-    if not key:
-        return None
-    return AsyncOpenAI(api_key=key)
+    """Return a singleton AsyncOpenAI client, or None if no API key is set."""
+    global _cached_client, _client_initialized
+    if not _client_initialized:
+        key = os.getenv("OPENAI_API_KEY", "").strip()
+        if key:
+            _cached_client = AsyncOpenAI(api_key=key, timeout=_OPENAI_TIMEOUT_SECONDS)
+        _client_initialized = True
+    return _cached_client
 
 
 async def enhance_explanation(
@@ -80,8 +99,28 @@ async def enhance_explanation(
                 {"role": "user", "content": user_msg},
             ],
         )
-        text = resp.choices[0].message.content.strip()
+        text = (resp.choices[0].message.content or "").strip()
         return text or None
+    except AuthenticationError:
+        logger.error("OpenAI authentication failed — check OPENAI_API_KEY")
+        return None
+    except RateLimitError:
+        logger.warning("OpenAI rate limit reached — falling back to policy text")
+        return None
+    except APITimeoutError:
+        logger.warning(
+            "OpenAI request timed out after %ss — falling back to policy text",
+            _OPENAI_TIMEOUT_SECONDS,
+        )
+        return None
+    except APIConnectionError:
+        logger.warning("Could not connect to OpenAI API — falling back to policy text")
+        return None
     except OpenAIError as exc:
         logger.warning("OpenAI call failed — falling back to policy text: %s", exc)
+        return None
+    except Exception:
+        logger.exception(
+            "Unexpected error during AI explanation — falling back to policy text"
+        )
         return None

@@ -1,4 +1,3 @@
-import pytest
 from fastapi.testclient import TestClient
 
 from app.main import app
@@ -11,37 +10,49 @@ client = TestClient(app)
 
 
 def test_high_churn_high_value():
-    d = decide(tenure_months=36, avg_monthly_spend=120, churn_risk=0.85, current_plan="Basic")
+    d = decide(
+        tenure_months=36, avg_monthly_spend=120, churn_risk=0.85, current_plan="Basic"
+    )
     assert d.offer_name == "Premium Loyalty Bundle"
     assert d.discount_pct == 25
 
 
 def test_high_churn_low_value():
-    d = decide(tenure_months=12, avg_monthly_spend=30, churn_risk=0.75, current_plan="Basic")
+    d = decide(
+        tenure_months=12, avg_monthly_spend=30, churn_risk=0.75, current_plan="Basic"
+    )
     assert d.offer_name == "Loyalty Saver Plan"
     assert d.discount_pct == 15
 
 
 def test_long_tenure_low_spend_upsell():
-    d = decide(tenure_months=30, avg_monthly_spend=35, churn_risk=0.3, current_plan="Basic")
+    d = decide(
+        tenure_months=30, avg_monthly_spend=35, churn_risk=0.3, current_plan="Basic"
+    )
     assert d.offer_name == "Upsell to Standard Plus"
     assert d.discount_pct == 10
 
 
 def test_premium_plan_cross_sell():
-    d = decide(tenure_months=18, avg_monthly_spend=100, churn_risk=0.2, current_plan="Premium")
+    d = decide(
+        tenure_months=18, avg_monthly_spend=100, churn_risk=0.2, current_plan="Premium"
+    )
     assert d.offer_name == "Multi-Line Family Add-On"
     assert d.discount_pct == 5
 
 
 def test_new_subscriber_welcome():
-    d = decide(tenure_months=2, avg_monthly_spend=60, churn_risk=0.1, current_plan="Basic")
+    d = decide(
+        tenure_months=2, avg_monthly_spend=60, churn_risk=0.1, current_plan="Basic"
+    )
     assert d.offer_name == "Welcome Booster Pack"
     assert d.discount_pct == 20
 
 
 def test_default_standard_renewal():
-    d = decide(tenure_months=14, avg_monthly_spend=55, churn_risk=0.3, current_plan="Standard")
+    d = decide(
+        tenure_months=14, avg_monthly_spend=55, churn_risk=0.3, current_plan="Standard"
+    )
     assert d.offer_name == "Standard Renewal"
     assert d.discount_pct == 0
 

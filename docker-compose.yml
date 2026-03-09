@@ -5,17 +5,20 @@ services:
     build:
       context: ./services/offer-decision-service
       dockerfile: Dockerfile
+      target: dev
     ports:
       - "8000:8000"
     env_file:
       - .env
     volumes:
       - ./services/offer-decision-service/app:/app/app
+      - ./services/offer-decision-service/tests:/app/tests
 
   frontend:
     build:
       context: ./web/demo-ui
       dockerfile: Dockerfile
+      target: dev
     ports:
       - "3000:3000"
     env_file:

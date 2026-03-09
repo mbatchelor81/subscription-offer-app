@@ -1,6 +1,32 @@
+# Python artefacts
 __pycache__/
 *.pyc
+*.pyo
+*.egg-info/
+dist/
+build/
 .venv/
-.env
 .pytest_cache/
 .ruff_cache/
+.mypy_cache/
+
+# Environment / secrets
+.env
+.env.*
+
+# Docs (not needed in image)
+docs/
+*.md
+
+# Version control
+.git/
+.gitignore
+
+# IDE
+.vscode/
+.idea/
+
+# Coverage / CI
+htmlcov/
+coverage.xml
+.coverage
