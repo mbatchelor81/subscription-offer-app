@@ -244,8 +244,9 @@ def test_validation_error_entry_structure():
     body = resp.json()
     for entry in body["detail"]:
         assert "type" in entry
-        assert "loc" in entry
-        assert "msg" in entry
+        # Custom error handler returns "field" (flattened loc) and "message"
+        assert "field" in entry
+        assert "message" in entry
 
 
 def test_validation_error_churn_includes_field_location():
@@ -253,8 +254,9 @@ def test_validation_error_churn_includes_field_location():
     resp = client.post("/decide", json=payload)
     assert resp.status_code == 422
     body = resp.json()
-    locations = [tuple(e["loc"]) for e in body["detail"]]
-    assert any("churn_risk" in loc for loc in locations)
+    # Custom error handler flattens loc into a "field" string
+    fields = [e["field"] for e in body["detail"]]
+    assert any("churn_risk" in f for f in fields)
 
 
 # -- Content-type validation --

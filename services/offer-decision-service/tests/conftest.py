@@ -16,3 +16,21 @@ def _mock_ai_explanation():
     with patch("app.main.enhance_explanation", new_callable=AsyncMock) as mock:
         mock.return_value = None
         yield mock
+
+
+@pytest.fixture(autouse=True)
+def _reset_rate_limiter():
+    """Reset the slowapi rate limiter storage before each test.
+
+    Without this, tests that call /decide accumulate against the
+    30/minute limit and later tests receive 429 responses.
+    """
+    from app.main import limiter
+
+    yield
+    try:
+        limiter.reset()
+    except Exception:
+        # Fallback: clear the in-memory storage directly
+        if hasattr(limiter, "_storage") and hasattr(limiter._storage, "storage"):
+            limiter._storage.storage.clear()
