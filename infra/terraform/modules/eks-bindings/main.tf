@@ -33,7 +33,7 @@ resource "aws_iam_role" "workload" {
       {
         Effect = "Allow"
         Principal = {
-          Federated = data.aws_eks_cluster.this[0].identity[0].oidc[0].issuer
+          Federated = "arn:aws:iam::${data.aws_caller_identity.current.account_id}:oidc-provider/${replace(data.aws_eks_cluster.this[0].identity[0].oidc[0].issuer, "https://", "")}"
         }
         Action = "sts:AssumeRoleWithWebIdentity"
         Condition = {
