@@ -14,7 +14,14 @@ from __future__ import annotations
 import os
 
 import structlog
-from openai import AsyncOpenAI, OpenAIError
+from openai import (
+    APIConnectionError,
+    APITimeoutError,
+    AsyncOpenAI,
+    AuthenticationError,
+    OpenAIError,
+    RateLimitError,
+)
 
 logger = structlog.stdlib.get_logger(__name__)
 
@@ -35,11 +42,15 @@ _SYSTEM_PROMPT = (
 )
 
 
+# Timeout for OpenAI API calls in seconds
+_OPENAI_TIMEOUT_SECONDS = 15.0
+
+
 def _client() -> AsyncOpenAI | None:
     key = os.getenv("OPENAI_API_KEY", "").strip()
     if not key:
         return None
-    return AsyncOpenAI(api_key=key)
+    return AsyncOpenAI(api_key=key, timeout=_OPENAI_TIMEOUT_SECONDS)
 
 
 async def enhance_explanation(
@@ -80,8 +91,28 @@ async def enhance_explanation(
                 {"role": "user", "content": user_msg},
             ],
         )
-        text = resp.choices[0].message.content.strip()
+        text = (resp.choices[0].message.content or "").strip()
         return text or None
+    except AuthenticationError:
+        logger.error("OpenAI authentication failed — check OPENAI_API_KEY")
+        return None
+    except RateLimitError:
+        logger.warning("OpenAI rate limit reached — falling back to policy text")
+        return None
+    except APITimeoutError:
+        logger.warning(
+            "OpenAI request timed out after %ss — falling back to policy text",
+            _OPENAI_TIMEOUT_SECONDS,
+        )
+        return None
+    except APIConnectionError:
+        logger.warning("Could not connect to OpenAI API — falling back to policy text")
+        return None
     except OpenAIError as exc:
         logger.warning("OpenAI call failed — falling back to policy text: %s", exc)
+        return None
+    except Exception:
+        logger.exception(
+            "Unexpected error during AI explanation — falling back to policy text"
+        )
         return None
