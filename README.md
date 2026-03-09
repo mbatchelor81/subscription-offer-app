@@ -40,7 +40,7 @@ flowchart LR
 | Component | Tech | Port |
 |-----------|------|------|
 | Backend API | Python 3.12 / FastAPI / Uvicorn | 8000 |
-| Frontend | Node 20 / Next.js (React 19) | 3000 |
+| Frontend | Node 20 / Next.js 14 (React 18) | 3000 |
 | Infrastructure | Terraform (ECR, IAM, EKS bindings) | — |
 | Orchestration | Helm 3 on AWS EKS | — |
 | Quality Gate | SonarCloud | — |
