@@ -6,7 +6,7 @@ variable "repository_name" {
 variable "image_tag_mutability" {
   description = "Tag mutability setting (MUTABLE or IMMUTABLE)"
   type        = string
-  default     = "IMMUTABLE"
+  default     = "MUTABLE"
 }
 
 variable "force_delete" {
