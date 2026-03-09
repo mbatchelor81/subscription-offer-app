@@ -10,6 +10,7 @@ on:
   push:
     branches:
       - main
+      - "demo/**"
 
 # Cancel redundant runs for the same branch / PR
 concurrency:
@@ -86,7 +87,7 @@ jobs:
     name: Build & Push Image
     runs-on: ubuntu-latest
     needs: [lint-test, sonar]
-    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    if: (github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/heads/demo/')) && github.event_name == 'push'
     permissions:
       id-token: write   # Required for OIDC
       contents: read
@@ -135,7 +136,7 @@ jobs:
     name: Deploy to EKS
     runs-on: ubuntu-latest
     needs: build-push
-    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    if: (github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/heads/demo/')) && github.event_name == 'push'
     permissions:
       id-token: write
       contents: read
