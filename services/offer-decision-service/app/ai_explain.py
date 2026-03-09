@@ -46,11 +46,19 @@ _SYSTEM_PROMPT = (
 _OPENAI_TIMEOUT_SECONDS = 15.0
 
 
+_cached_client: AsyncOpenAI | None = None
+_client_initialized: bool = False
+
+
 def _client() -> AsyncOpenAI | None:
-    key = os.getenv("OPENAI_API_KEY", "").strip()
-    if not key:
-        return None
-    return AsyncOpenAI(api_key=key, timeout=_OPENAI_TIMEOUT_SECONDS)
+    """Return a singleton AsyncOpenAI client, or None if no API key is set."""
+    global _cached_client, _client_initialized
+    if not _client_initialized:
+        key = os.getenv("OPENAI_API_KEY", "").strip()
+        if key:
+            _cached_client = AsyncOpenAI(api_key=key, timeout=_OPENAI_TIMEOUT_SECONDS)
+        _client_initialized = True
+    return _cached_client
 
 
 async def enhance_explanation(

@@ -34,3 +34,16 @@ def reset_rate_limiter():
     _rate_buckets.clear()
     yield
     _rate_buckets.clear()
+
+
+@pytest.fixture(autouse=True)
+def reset_openai_client_singleton():
+    """Reset the singleton OpenAI client between tests so that tests
+    which manipulate OPENAI_API_KEY get a fresh initialization."""
+    import app.ai_explain as ai_mod
+
+    ai_mod._cached_client = None
+    ai_mod._client_initialized = False
+    yield
+    ai_mod._cached_client = None
+    ai_mod._client_initialized = False
