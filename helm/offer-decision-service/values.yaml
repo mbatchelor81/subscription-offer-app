@@ -1,0 +1,21 @@
+# Default values for offer-decision-service Helm chart.
+# Override these in environment-specific values files or via --set flags.
+
+replicaCount: 2
+
+image:
+  repository: ""  # set via CI (e.g. 123456789.dkr.ecr.us-east-1.amazonaws.com/offer-decision-service)
+  tag: ""         # set via CI (e.g. github.sha)
+  pullPolicy: IfNotPresent
+
+# ----- Secrets -----
+# In production, prefer ExternalSecrets / SealedSecrets over inline values.
+# These are provided as placeholders and should NEVER contain real credentials.
+secrets:
+  openaiApiKey: ""  # populate via --set secrets.openaiApiKey=$OPENAI_API_KEY
+
+# ----- Environment -----
+env:
+  APP_ENV: production
+  LOG_LEVEL: info
+  ALLOWED_ORIGINS: ""  # comma-separated list of allowed CORS origins

@@ -76,5 +76,10 @@ async def enhance_explanation(
         return None
 
     except Exception:
-        logger.exception("AI explanation failed — falling back to base")
+        # Log only the exception type — never the full traceback which
+        # could contain the API key in HTTP headers or request bodies.
+        logger.error(
+            "AI explanation failed (type=%s) — falling back to base",
+            type(Exception).__name__,
+        )
         return None
