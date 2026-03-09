@@ -54,3 +54,26 @@ HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
 
 # Production CMD — no --reload
 CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
+
+# ---------- Stage 3: dev (used by docker-compose for local development) ----------
+FROM production AS dev
+
+USER root
+
+# Need pyproject.toml for dev extras install
+COPY pyproject.toml .
+
+# Install dev dependencies (pytest, ruff, httpx) into the existing venv
+RUN /opt/venv/bin/pip install --no-cache-dir ".[dev]"
+
+# Copy test files
+COPY tests/ ./tests/
+
+# Create writable cache directories for dev tools
+RUN mkdir -p /app/.pytest_cache /app/.ruff_cache \
+    && chown -R appuser:appuser /app/.pytest_cache /app/.ruff_cache /app/tests
+
+USER appuser
+
+# Dev CMD — with --reload for hot-reloading
+CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000", "--reload"]

@@ -14,8 +14,7 @@ build/
 .env
 .env.*
 
-# Tests & docs (not needed in production image)
-tests/
+# Docs (not needed in image)
 docs/
 *.md
 
