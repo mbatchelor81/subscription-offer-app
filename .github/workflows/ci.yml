@@ -75,6 +75,10 @@ jobs:
         with:
           name: coverage-report
 
+      - name: Fix coverage source paths
+        run: |
+          sed -i "s|<source>.*</source>|<source>${GITHUB_WORKSPACE}/services/offer-decision-service</source>|" coverage.xml
+
       - name: SonarCloud analysis
         uses: SonarSource/sonarcloud-github-action@v3
         env:
