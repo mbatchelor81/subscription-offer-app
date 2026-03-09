@@ -38,8 +38,8 @@ WORKDIR /app
 # Copy only the standalone output and static assets
 COPY --from=builder --chown=appuser:appuser /app/.next/standalone ./
 COPY --from=builder --chown=appuser:appuser /app/.next/static ./.next/static
-# Copy public assets if they exist (the directory may not be present)
-COPY --from=builder --chown=appuser:appuser /app/public* ./public/
+# Copy public assets
+COPY --from=builder --chown=appuser:appuser /app/public ./public
 
 # Switch to non-root user
 USER appuser
