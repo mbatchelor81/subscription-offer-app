@@ -52,6 +52,16 @@ readinessProbe:
   timeoutSeconds: 3
   failureThreshold: 3
 
+# -- Ingress (ALB via AWS Load Balancer Controller)
+ingress:
+  enabled: false
+  className: alb
+  annotations:
+    alb.ingress.kubernetes.io/scheme: internet-facing
+    alb.ingress.kubernetes.io/target-type: ip
+    alb.ingress.kubernetes.io/listen-ports: '[{"HTTP": 80}]'
+    alb.ingress.kubernetes.io/healthcheck-path: /
+
 nodeSelector: {}
 tolerations: []
 affinity: {}
