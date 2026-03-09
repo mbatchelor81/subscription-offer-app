@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import contextvars
 import logging
 import os
 import uuid
@@ -9,6 +10,11 @@ import uuid
 from pythonjsonlogger import jsonlogger
 
 from opentelemetry import trace
+
+# Context-local request ID — safe under asyncio concurrency.
+request_id_ctx: contextvars.ContextVar[str] = contextvars.ContextVar(
+    "request_id", default=""
+)
 
 
 def _current_trace_ids() -> dict[str, str]:
@@ -39,9 +45,9 @@ class TraceJsonFormatter(jsonlogger.JsonFormatter):
         ids = _current_trace_ids()
         log_record["trace_id"] = ids["trace_id"]
         log_record["span_id"] = ids["span_id"]
-        # request_id is set per-request via middleware
+        # Read request_id from the context-local variable (set by middleware)
         if not log_record.get("request_id"):
-            log_record["request_id"] = getattr(record, "request_id", "")
+            log_record["request_id"] = request_id_ctx.get("")
 
 
 def setup_logging() -> None:

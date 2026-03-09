@@ -4,7 +4,7 @@ from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.ai_explain import enhance_explanation
-from app.logging_config import generate_request_id, setup_logging
+from app.logging_config import generate_request_id, request_id_ctx, setup_logging
 from app.metrics import setup_metrics
 from app.policy import decide
 from app.schemas import OfferResponse, SubscriberRequest
@@ -34,15 +34,8 @@ async def request_id_middleware(request: Request, call_next):
     request_id = request.headers.get("X-Request-ID", generate_request_id())
     request.state.request_id = request_id
 
-    # Inject request_id into log records for this request
-    old_factory = logging.getLogRecordFactory()
-
-    def _factory(*args, **kwargs):
-        record = old_factory(*args, **kwargs)
-        record.request_id = request_id  # type: ignore[attr-defined]
-        return record
-
-    logging.setLogRecordFactory(_factory)
+    # Store request_id in a ContextVar (safe under async concurrency)
+    token = request_id_ctx.set(request_id)
 
     logger.info(
         "request_started",
@@ -52,19 +45,19 @@ async def request_id_middleware(request: Request, call_next):
         },
     )
 
-    response = await call_next(request)
-    response.headers["X-Request-ID"] = request_id
+    try:
+        response = await call_next(request)
+        response.headers["X-Request-ID"] = request_id
 
-    logger.info(
-        "request_completed",
-        extra={
-            "status_code": response.status_code,
-        },
-    )
-
-    # Restore original factory
-    logging.setLogRecordFactory(old_factory)
-    return response
+        logger.info(
+            "request_completed",
+            extra={
+                "status_code": response.status_code,
+            },
+        )
+        return response
+    finally:
+        request_id_ctx.reset(token)
 
 
 @app.get("/healthz")
