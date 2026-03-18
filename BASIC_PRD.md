@@ -21,6 +21,10 @@ Acceptance criteria:
 - There is a simple web page where I can input the fields and see the output immediately.
 - There is a simple API powering it (so we can later productionize it).
 
+Technical Implementation Notes:
+- CORS must be configured in the backend to allow frontend (localhost:3000) to access backend API (localhost:8000)
+- Add CORS middleware with allow_origins=["http://localhost:3000", "http://127.0.0.1:3000"] for local development
+
 Please implement this into the existing monorepo scaffold:
 - Backend in @services/offer-decision-service 
 - UI in @web/demo-ui 
