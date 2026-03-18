@@ -8,7 +8,7 @@ Core business functionality:
 - The offer decision is **policy-driven and deterministic**; AI may only improve the wording of the explanation.
 
 - **Backend:** Python 3.12 / FastAPI, served via Uvicorn.
-- **Frontend:** Node 20 / React (Vite dev server).
+- **Frontend:** Node 20 / React (Next.js dev server).
 
 ## How an agent should think about changes
 - Preserve the business policy and output contract; do not change offer logic unless explicitly asked.
