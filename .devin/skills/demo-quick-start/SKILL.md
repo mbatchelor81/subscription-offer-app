@@ -21,7 +21,7 @@ uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
 
 # Terminal 2 - Frontend  
 cd web/demo-ui
-nvm use 18
+nvm use 20
 npm run dev
 ```
 

@@ -16,3 +16,12 @@ Core business functionality:
 - Prefer small, reviewable PRs with clear summaries.
 - For production hardening tasks, add guardrails (tests, CI checks, security gates) rather than bypassing them.
 - Treat AI as an *augmentation layer* (explanation text), never as the decision-maker.
+
+## Running the Demo Application
+When asked to start the demo app, always use the skill in `.devin/skills/demo-quick-start/SKILL.md` which provides:
+- Local development commands for backend and frontend
+- Health check and demo test commands  
+- Pre-configured demo scenarios for quick demonstrations
+- Troubleshooting tips for common issues
+
+The skill should be invoked first before attempting manual startup procedures.
