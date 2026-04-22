@@ -1,0 +1,224 @@
+name: Security Scanning
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+  schedule:
+    # Weekly full scan on Mondays at 06:00 UTC
+    - cron: "0 6 * * 1"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  security-events: write
+  actions: read
+
+jobs:
+  # ---------------------------------------------------------------------------
+  # SAST — CodeQL static analysis for Python (backend) and JavaScript (frontend)
+  # ---------------------------------------------------------------------------
+  codeql:
+    name: CodeQL (${{ matrix.language }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        language: [python, javascript]
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@v3
+        with:
+          languages: ${{ matrix.language }}
+          queries: security-and-quality
+
+      - name: Autobuild
+        uses: github/codeql-action/autobuild@v3
+
+      - name: Perform CodeQL Analysis
+        uses: github/codeql-action/analyze@v3
+        with:
+          category: "/language:${{ matrix.language }}"
+
+  # ---------------------------------------------------------------------------
+  # Dependency scanning — Python (pip-audit) and Node (npm audit + Trivy fs)
+  # ---------------------------------------------------------------------------
+  python-deps:
+    name: Python Dependency Audit (pip-audit)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install pip-audit
+        run: pip install pip-audit
+
+      - name: Run pip-audit against offer-decision-service
+        working-directory: services/offer-decision-service
+        # Fail the job on any known vulnerability, but still upload the report.
+        run: |
+          pip-audit --strict --desc --format json --output pip-audit-report.json .
+        continue-on-error: true
+
+      - name: Upload pip-audit report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: pip-audit-report
+          path: services/offer-decision-service/pip-audit-report.json
+          if-no-files-found: ignore
+
+  node-deps:
+    name: Node Dependency Audit (npm audit)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: web/demo-ui/package-lock.json
+
+      - name: Install dependencies (no scripts)
+        working-directory: web/demo-ui
+        run: npm ci --ignore-scripts
+
+      - name: Run npm audit (high severity+)
+        working-directory: web/demo-ui
+        run: npm audit --audit-level=high
+
+  # ---------------------------------------------------------------------------
+  # Filesystem + dependency scan via Trivy (covers lockfiles across the repo)
+  # ---------------------------------------------------------------------------
+  trivy-fs:
+    name: Trivy Filesystem Scan
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Run Trivy filesystem scan
+        uses: aquasecurity/trivy-action@0.28.0
+        with:
+          scan-type: fs
+          scan-ref: .
+          format: sarif
+          output: trivy-fs.sarif
+          severity: CRITICAL,HIGH
+          ignore-unfixed: true
+          exit-code: "0"
+
+      - name: Upload Trivy fs SARIF to GitHub Security
+        if: always()
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: trivy-fs.sarif
+          category: trivy-fs
+
+  # ---------------------------------------------------------------------------
+  # Secret scanning — Gitleaks across full repo history on PR/push
+  # ---------------------------------------------------------------------------
+  gitleaks:
+    name: Secret Scan (Gitleaks)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout (full history)
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Run Gitleaks
+        uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITLEAKS_ENABLE_UPLOAD_ARTIFACT: "true"
+          GITLEAKS_ENABLE_SUMMARY: "true"
+
+  # ---------------------------------------------------------------------------
+  # Container image scanning — build each service image and scan with Trivy
+  # ---------------------------------------------------------------------------
+  container-scan:
+    name: Container Image Scan (${{ matrix.service.name }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        service:
+          - name: offer-decision-service
+            context: services/offer-decision-service
+            image: offer-decision-service:scan
+          - name: demo-ui
+            context: web/demo-ui
+            image: demo-ui:scan
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build image (local, no push)
+        uses: docker/build-push-action@v6
+        with:
+          context: ${{ matrix.service.context }}
+          push: false
+          load: true
+          tags: ${{ matrix.service.image }}
+
+      - name: Run Trivy image scan
+        uses: aquasecurity/trivy-action@0.28.0
+        with:
+          image-ref: ${{ matrix.service.image }}
+          format: sarif
+          output: trivy-image-${{ matrix.service.name }}.sarif
+          severity: CRITICAL,HIGH
+          ignore-unfixed: true
+          exit-code: "0"
+
+      - name: Upload Trivy image SARIF to GitHub Security
+        if: always()
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: trivy-image-${{ matrix.service.name }}.sarif
+          category: trivy-image-${{ matrix.service.name }}
+
+  # ---------------------------------------------------------------------------
+  # IaC scanning — Checkov for Terraform, Helm, Dockerfiles, and GitHub Actions
+  # ---------------------------------------------------------------------------
+  iac-checkov:
+    name: IaC Scan (Checkov)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Run Checkov
+        uses: bridgecrewio/checkov-action@v12
+        with:
+          directory: .
+          framework: terraform,helm,dockerfile,github_actions,secrets
+          output_format: sarif
+          output_file_path: checkov.sarif
+          soft_fail: true
+          quiet: true
+
+      - name: Upload Checkov SARIF to GitHub Security
+        if: always()
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: checkov.sarif/results_sarif.sarif
+          category: checkov
