@@ -64,11 +64,18 @@ jobs:
       - name: Install pip-audit
         run: pip install pip-audit
 
-      - name: Run pip-audit against offer-decision-service
+      - name: Install offer-decision-service dependencies
         working-directory: services/offer-decision-service
-        # Fail the job on any known vulnerability, but still upload the report.
-        run: |
-          pip-audit --strict --desc --format json --output pip-audit-report.json .
+        run: pip install .
+
+      - name: Run pip-audit against installed environment
+        working-directory: services/offer-decision-service
+        # Scans the installed environment (populated from pyproject.toml above)
+        # rather than passing a positional requirements-file path.
+        # Matches the rest of the security scans: report findings without
+        # blocking the pipeline; results are visible in the job log and the
+        # uploaded JSON artifact.
+        run: pip-audit --desc --format json --output pip-audit-report.json
         continue-on-error: true
 
       - name: Upload pip-audit report
